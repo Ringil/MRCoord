@@ -23,6 +23,7 @@ class Job
 	property :owner, 		Text, 	:required => true   #Whomever created the MapReduce job ie. a researcher
 	property :mapFunc,		Text,	:required => true
 	property :reduceFunc,	Text,	:required => true 
+	property :location, 	String,	:required => true	#Location of the piece of data ie. the link
 	property :started,		Boolean, :default => false
 	has n, :workers
 	has n, :dataChunks
@@ -39,7 +40,6 @@ end
 class DataChunk
 	include DataMapper::Resource
 	property :id, 			Serial
-	property :location, 	String,	 :required => true	#Location of the piece of data ie. the link
 	property :numWorkers,	Integer, :default => 0		#Number of workers who have this piece of data
 	property :finished,		Boolean, :default => false 	#Check if we already have the results for this chunk
 	belongs_to :job
@@ -54,6 +54,8 @@ end
 DataMapper.finalize.auto_migrate!
 
 #This is just some dummy input for the db to test stuff
+
+#THE MODEL CHANGED SO ALL OF THIS DUMMY STUFF IS USELESS UNTILS ITS UPDATED
 test = {
 	:desc => "Random description",
 	:owner => "Ted Copplestein",
@@ -89,6 +91,15 @@ get '/' do
 	erb :home
 end
 
+get '/register_job/:id/response' do
+	#Create JSON response with needed info
+	content_type :json
+	{
+		:status => "READY",
+		:jobID => params[:id]
+	}.to_json
+
+end
 post '/register_job' do
 	jobJSON = JSON.parse(request.body.read.to_s)
 
@@ -97,22 +108,12 @@ post '/register_job' do
 		:owner => "This is a default value until we change the json format",
 		:mapFunc => jobJSON['map'],
 		:reduceFunc => jobJSON['reduce'],
-		
+		:location => jobJSON['input']
 	}
-	#need to parse json file of format
-# 	post data (JSON): 
-# {
-#   jobName: "Some job name",
-#   input: "http://datastore",
-#   output: "http://datastore",
-#   map: "map_function_goes_here",
-#   reduce: "reduce_function_goes_here"
-# }
-# response (JSON):
-# {
-#   status: "READY",
-#   jobID: "job1234"
-# }
+
+	#Search for the job ID then redirect to the response get
+
+	redirect '/register_job/'+:id.to_s+'/response'
 end
 
 post '/start_job' do
