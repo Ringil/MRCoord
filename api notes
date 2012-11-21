@@ -1,0 +1,82 @@
+First, some assumptions and definitions:
+JobCreator: The user that specifies the MR job, including the Map & Reduce functions, and input and output data store location.
+Worker: The user that runs map or reduce functions on specific types of jobs
+MR_Coordinator: Our server that keeps track of job ids, MR phase and assigns work to connected workers. The example url I will use is: http://coordinator/
+MR_DataStore: The server, controlled by the JobCreator, that has input data and is also the location of output data. The example url I will use is: http://datastore/
+
+MR_Coordinator API
+
+path: POST - http://coordinator/register_job
+post data (JSON): 
+{
+  jobName: "Some job name",
+  input: "http://datastore",
+  output: "http://datastore",
+  map: "map_function_goes_here",
+  reduce: "reduce_function_goes_here"
+}
+
+response (JSON):
+{
+  status: "READY",
+  jobID: "job1234"
+}
+
+description:  This url will accept new job registries. input and output urls should be the same. We will assume a constant api (See DataStore API). The return response is a JSON message with status field, and jobID.
+
+path: POST - http://coordinator/start_job
+post data: jobID=job1234
+description: once the job is registered, JobCreator will post a message to coordinator to start.
+
+path: GET - http://coordinator/jobID/worker
+return (JSON):
+{
+   url: "http://datastore/jobID" (for map input) 
+   //url: "http://coordinator/jobID" (for reduce input),
+   fnLocation: "http://coordinator/jobID/map.js",
+   //fnLocation: "http://coordinator/jobID/reduce.js",
+   output: "http://coordinator/jobID/submit_map_output",
+   //output: "http://datastore/jobID/submit_final"
+   start: 1,
+   end: 1000,
+   workID: work1234
+}
+description: by logging into url http://coordinator/jobID/worker, a browser registers himself as being available for  job. The Coordinator, responds to the requests by sending the worker a JSON object that shows the url of the input data, as well as the url of the function(map or reduce) to run on that data and the url of where to send the result. The url is standard and defined in this document.
+
+path: POST http://coordinator/jobID/submit_map_output
+post data: 
+{
+   {key: "some_key1", value: ["value1", "value2" ]},
+   {key: "some_key2", value:  ["value1"]},
+   {key: "some_key3", value:  ["value3", "value4"]}
+}
+description: After the workers completes his work he sends his result via this JSON object to the given address. The format of the submission is shown by example.
+
+MR_DataStore API:
+In our system MR_DataStore serves a dual purpose of providing input data, 
+
+path: GET - http://datastore/jobID/chunks
+returns (JSON): { chunks: number_of_chunks, kbPerChunk: 1000 }
+description: the idea is that MR_Coordinator will query the MR_DataStore to figure out how many chunks there are to split. MR_DataStore will return the number of discrete chunks and also an estimated value of size of each 
+chunk. This way we can have some constraints on how much data we send to each individual client.
+
+path: GET - http://datastore/jobID/chunks/range?start=1&end=4
+returns (JSON): 
+{
+  input: [
+     {key: "some_key1", value: "some_value1"},
+     {key: "some_key2", value: "some_value2"},
+     {key: "some_key3", value: "some_value3"},
+     {key: "some_key4", value: "some_value4"}
+  ]
+}
+description: For a given range( in this case 1 to 4) returns the lines to be processed by the client's map functions.
+
+path: POST http://datastore/jobID/submit_final
+post data: 
+{
+   {key: "some_key1", value= ["value1", "value2" ]},
+   {key: "some_key2", value= ["value1"]},
+   {key: "some_key3", value =["value3", "value4"]}
+}
+description: After the final reduce phase, the client sends a JSON object to the given address. The JSON object properties correspond to keys, and the values are an array of values/answers for that key.

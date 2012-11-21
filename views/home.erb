@@ -1,0 +1,9 @@
+<% @jobs.each do |job| %>
+	<article>
+		<p>
+			<%=h(job.desc) %>
+			<span><a href="/<%= job.id %>/worker">[Join Job]</a></span>
+			<p class="meta">Owner: <%= job.owner %></p>
+		</p>		
+	</article>
+<% end %>
