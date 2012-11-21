@@ -5,7 +5,8 @@ require 'json'
 enable :sessions
 
 SITE_TITLE = "Community MapReduce"
-DataMapper.setup(:default, "sqlite3://#{Dir.pwd}/coord.db")
+#DataMapper.setup(:default, "sqlite3://#{Dir.pwd}/coord.db")
+DataMapper.setup(:default, ENV['DATABASE_URL']
 
 helpers do
 	include Rack::Utils
@@ -21,8 +22,8 @@ class Job
 	property :id, 			Serial						#Job id
 	property :desc, 		Text,	:required => true 	#Description of the job
 	property :owner, 		Text, 	:required => true   #Whomever created the MapReduce job ie. a researcher
-	property :mapFuncLoc,		Text,	:required => true
-	property :reduceFuncLoc,	Text,	:required => true 
+	property :mapFuncLoc,	Text,	:required => true
+	property :reduceFuncLoc,Text,	:required => true 
 	property :location, 	Text,	:required => true	#Location of the piece of data ie. the link
 	property :started,		Boolean, :default => false
 	has n, :workers
