@@ -21,9 +21,9 @@ class Job
 	property :id, 			Serial						#Job id
 	property :desc, 		Text,	:required => true 	#Description of the job
 	property :owner, 		Text, 	:required => true   #Whomever created the MapReduce job ie. a researcher
-	property :mapFunc,		Text,	:required => true
-	property :reduceFunc,	Text,	:required => true 
-	property :location, 	String,	:required => true	#Location of the piece of data ie. the link
+	property :mapFuncLoc,		Text,	:required => true
+	property :reduceFuncLoc,	Text,	:required => true 
+	property :location, 	Text,	:required => true	#Location of the piece of data ie. the link
 	property :started,		Boolean, :default => false
 	has n, :workers
 	has n, :dataChunks
@@ -54,14 +54,14 @@ end
 DataMapper.finalize.auto_migrate!
 
 #This is just some dummy input for the db to test stuff
-
-#THE MODEL CHANGED SO ALL OF THIS DUMMY STUFF IS USELESS UNTILS ITS UPDATED
 test = {
 	:desc => "Random description",
 	:owner => "Ted Copplestein",
+	:mapFuncLoc => "someMapFunc",	
+	:reduceFuncLoc => "someReduceFunc",
+	:location => "otherdatastore.com/",
 	:dataChunks => [
 		{
-			:location => "www.otherdatastore.com/chunk1",
 			:numWorkers => 0,
 			:finished => false
 		},
@@ -70,12 +70,14 @@ test = {
 job = Job.first_or_create(test)
 
 
-test2 = {
+test2 = {	
 	:desc => "Dummy desc",
 	:owner => "Mark Vensawhl",
+	:mapFuncLoc => "anotherMapFunc",	
+	:reduceFuncLoc => "anotherReduceFunc",
+	:location => "datastore.com/",
 	:dataChunks => [
 		{
-			:location => "www.datastore.com/chunk1",
 			:numWorkers => 0,
 			:finished => false
 		},
@@ -91,7 +93,7 @@ get '/' do
 	erb :home
 end
 
-get '/register_job/:id/response' do
+get '/:id/register_job/ready' do
 	#Create JSON response with needed info
 	content_type :json
 	{
@@ -100,20 +102,33 @@ get '/register_job/:id/response' do
 	}.to_json
 
 end
+
+get '/register_job/fail' do
+	#Create JSON response with needed info
+	content_type :json
+	{
+		:status => "FAIL",
+	}.to_json
+
+end
+
 post '/register_job' do
 	jobJSON = JSON.parse(request.body.read.to_s)
 
 	newjob = {
 		:desc => jobJSON['jobName'],
 		:owner => "This is a default value until we change the json format",
-		:mapFunc => jobJSON['map'],
-		:reduceFunc => jobJSON['reduce'],
+		:mapFuncLoc => jobJSON['map'],
+		:reduceFuncLoc => jobJSON['reduce'],
 		:location => jobJSON['input']
 	}
-
-	#Search for the job ID then redirect to the response get
-
-	redirect '/register_job/'+:id.to_s+'/response'
+	
+	regJob = create(newjob)
+	if regJob.saved?
+		redirect '/'+regJob.id.to_s+'/register_job/ready' #THIS MIGHT NOT WORK. MAY HAVE TO RUN A GET ON THE JOB FIRST
+	else
+		redirect '/register_job/fail'
+	end
 end
 
 post '/start_job' do
@@ -137,15 +152,15 @@ get '/:id/worker' do
 	end
 
 	nextJob = job.dataChunks.nextChunk #Find next piece of data that needs work
-
+	nextJob.update(:numWorkers => (:numWorkers + 1)) #MIGHT NOT WORK Increment number of users
 	worker = job.workers.create(:dataID => nextJob.id) #Add a worker entry to the job
 	
 	#Create JSON response with needed info
 	content_type :json
 	{
-		:url => nextJob.location,
-		:fnLocation => "http://coordinator/jobID/map.js",
-		:output => "http://coordinator/jobID/submit_map_output",
+		:url => job.location,
+		:fnLocation => job.mapFuncLoc, #THIS NEEDS TO BE CHANGED SO IT GIVES THE RIGHT FUNC DEPENDING ON MAP OR EREDUCE PHASE
+		:output => job.location,
 		:workID => worker.id
 	}.to_json
 end
