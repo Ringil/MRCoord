@@ -5,8 +5,8 @@ require 'json'
 enable :sessions
 
 SITE_TITLE = "Community MapReduce"
-#DataMapper.setup(:default, "sqlite3://#{Dir.pwd}/coord.db")
-DataMapper.setup(:default, ENV['DATABASE_URL']
+DataMapper.setup(:default, "sqlite3://#{Dir.pwd}/coord.db")
+#DataMapper.setup(:default, ENV['DATABASE_URL']
 
 helpers do
 	include Rack::Utils
