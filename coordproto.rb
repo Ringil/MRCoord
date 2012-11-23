@@ -158,13 +158,13 @@ get '/:id/worker' do
 		redirect '/' #If you can't find the job with that id redirect back to the main page
 	end
 
-	nextJob = job.dataChunks.nextChunk #Find next piece of data that needs work
+	nextDataChunk = job.dataChunks.nextChunk #Find next piece of data that needs work
 	
-	numWorkers = nextJob.numWorkers	#Find out how many workers the dataChunk has
-	nextJob.update(:numWorkers => (numWorkers + 1)) #Increment number of workers on the dataChunk
-	nextJob.save 
+	numWorkers = nextDataChunk.numWorkers	#Find out how many workers the dataChunk has
+	nextDataChunk.update(:numWorkers => (numWorkers + 1)) #Increment number of workers on the dataChunk
+	nextDataChunk.save 
 	
-	worker = job.workers.create(:dataID => nextJob.id) #Add a worker entry to the job
+	worker = job.workers.create(:dataID => nextDataChunk.id) #Add a worker entry to the job
 	
 	#Create JSON response with needed info
 	content_type :json
