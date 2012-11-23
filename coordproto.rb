@@ -6,7 +6,7 @@ enable :sessions
 
 SITE_TITLE = "Community MapReduce"
 DataMapper.setup(:default, "sqlite3://#{Dir.pwd}/coord.db")
-#DataMapper.setup(:default, ENV['DATABASE_URL']
+#DataMapper.setup(:default, ENV['DATABASE_URL'])
 
 helpers do
 	include Rack::Utils
@@ -124,9 +124,9 @@ post '/register_job' do
 		:location => jobJSON['input']
 	}
 	
-	regJob = create(newjob)
+	regJob = Job.create(newjob)
 	if regJob.saved?
-		redirect '/'+regJob.id.to_s+'/register_job/ready' #THIS MIGHT NOT WORK. MAY HAVE TO RUN A GET ON THE JOB FIRST
+		redirect '/#{regJob.id.to_s}/register_job/ready' #THIS MIGHT NOT WORK. MAY HAVE TO RUN A GET ON THE JOB FIRST
 	else
 		redirect '/register_job/fail'
 	end
@@ -134,6 +134,12 @@ end
 
 post '/start_job' do
 # json file with the job id to start
+	jobIDParse = JSON.parse(request.body.read.to_s)
+	jobID = jobIDParse['jobID']
+	job = Job.get(jobID)
+
+	job.update(:started => true)
+	job.save
 end
 
 post '/:id/submit_map_output' do
@@ -153,7 +159,11 @@ get '/:id/worker' do
 	end
 
 	nextJob = job.dataChunks.nextChunk #Find next piece of data that needs work
-	nextJob.update(:numWorkers => (:numWorkers + 1)) #MIGHT NOT WORK Increment number of users
+	
+	numWorkers = nextJob.numWorkers	#Find out how many workers the dataChunk has
+	nextJob.update(:numWorkers => (numWorkers + 1)) #Increment number of workers on the dataChunk
+	nextJob.save 
+	
 	worker = job.workers.create(:dataID => nextJob.id) #Add a worker entry to the job
 	
 	#Create JSON response with needed info
